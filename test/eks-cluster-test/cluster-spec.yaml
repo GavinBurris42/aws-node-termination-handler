@@ -4,7 +4,7 @@ kind: ClusterConfig
 metadata:
   name: nth-eks-cluster-test
   region: us-west-2
-  version: '1.26'
+  version: '1.27'
 cloudWatch:
   clusterLogging:
     enableTypes: ["*"]
@@ -13,6 +13,13 @@ managedNodeGroups:
     instanceType: t3.large
     minSize: 2
     maxSize: 2
+  - name: spot-ng
+    instanceType: t3.medium
+    amiFamily: AmazonLinux2
+    desiredCapacity: 2
+    minSize: 2
+    maxSize: 2
+    spot: true
 nodeGroups:
   - name: windows-ng
     instanceType: m5.large
