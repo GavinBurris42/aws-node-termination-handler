@@ -98,10 +98,46 @@ func (m Metrics) NodeActionsInc(action, nodeName string, eventID string, err err
 	m.actionsCounter.Add(context.Background(), 1, labels...)
 }
 
+type myInt64Counter struct {
+	values            map[*[]attribute.KeyValue]int64
+	observableCounter instrument.Int64ObservableCounter
+}
+
+func (m *myInt64Counter) Callback(ctx context.Context, observer api.Observer) error {
+	labels := []attribute.KeyValue{labelNodeActionKey.String("action"), labelNodeNameKey.String("nodeName"), labelEventIDKey.String("eventID")}
+	observer.ObserveInt64(m.observableCounter, 3, labels...)
+	return nil
+}
+
 func registerMetricsWith(provider *metric.MeterProvider) (Metrics, error) {
 	meter := provider.Meter("aws.node.termination.handler")
 
-	name := "actions.node"
+	name := "actionsTest.node"
+	observableActionCounter, err := meter.Int64ObservableCounter(name, instrument.WithDescription("Number of actions per node"))
+	if err != nil {
+		return Metrics{}, fmt.Errorf("failed to create Prometheus counter %q: %w", name, err)
+	}
+
+	actionsCounterTest := myInt64Counter{
+		values:            make(map[*[]attribute.KeyValue]int64),
+		observableCounter: observableActionCounter,
+	}
+
+	name = "eventsTest.error"
+	observableErrorCounter, err := meter.Int64ObservableCounter(name, instrument.WithDescription("Number of errors in events processing"))
+	if err != nil {
+		return Metrics{}, fmt.Errorf("failed to create Prometheus counter %q: %w", name, err)
+	}
+
+	errorCounterTest := myInt64Counter{
+		values:            make(map[*[]attribute.KeyValue]int64),
+		observableCounter: observableErrorCounter,
+	}
+
+	meter.RegisterCallback(actionsCounterTest.Callback, observableActionCounter)
+	meter.RegisterCallback(errorCounterTest.Callback, observableErrorCounter)
+
+	name = "actions.node"
 	actionsCounter, err := meter.Int64Counter(name, instrument.WithDescription("Number of actions per node"))
 	if err != nil {
 		return Metrics{}, fmt.Errorf("failed to create Prometheus counter %q: %w", name, err)
